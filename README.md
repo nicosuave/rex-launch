@@ -13,9 +13,11 @@ you launch tasks on: `git`, [worktrunk](https://worktrunk.dev) (`wt`), and
 [Codex](https://github.com/openai/codex).
 
 ```sh
-cargo install --git https://github.com/nicosuave/rex-launch
+brew install nicosuave/tap/rex-launch    # or: cargo install --git https://github.com/nicosuave/rex-launch
 rex-launch setup
 ```
+
+The Homebrew formula also installs worktrunk.
 
 `rex-launch setup` copies [`lua/rex-launch.lua`](lua/rex-launch.lua) beside
 Rex's `init.lua`, adds this line to `init.lua` once, and reloads Rex:

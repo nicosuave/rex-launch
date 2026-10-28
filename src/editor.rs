@@ -72,7 +72,10 @@ impl Editor {
 
     pub fn word_right(&mut self) {
         let after = &self.text[self.cursor..];
-        let gap = after.len() - after.trim_start_matches(|c: char| !c.is_alphanumeric()).len();
+        let gap = after.len()
+            - after
+                .trim_start_matches(|c: char| !c.is_alphanumeric())
+                .len();
         let rest = &after[gap..];
         let word = rest.len() - rest.trim_start_matches(char::is_alphanumeric).len();
         self.cursor += gap + word;
@@ -106,7 +109,11 @@ impl Editor {
     pub fn kill_to_line_end(&mut self) {
         let end = self.logical_line_end();
         // At the end of a line, join it with the next one, as readline does.
-        let end = if end == self.cursor && end < self.text.len() { end + 1 } else { end };
+        let end = if end == self.cursor && end < self.text.len() {
+            end + 1
+        } else {
+            end
+        };
         self.text.replace_range(self.cursor..end, "");
         self.goal_col = None;
     }
@@ -130,7 +137,9 @@ impl Editor {
             self.goal_col = None;
             return;
         }
-        let soft_wrapped = rows.get(target + 1).is_some_and(|next| next.start == rows[target].end);
+        let soft_wrapped = rows
+            .get(target + 1)
+            .is_some_and(|next| next.start == rows[target].end);
         self.cursor = self.index_at_col(rows[target], col, soft_wrapped);
         self.goal_col = Some(col);
     }
@@ -199,7 +208,11 @@ impl Editor {
             used += w;
             last = row.start + i;
         }
-        if soft_wrapped && row.end > row.start { last } else { row.end }
+        if soft_wrapped && row.end > row.start {
+            last
+        } else {
+            row.end
+        }
     }
 }
 
@@ -231,7 +244,10 @@ fn wrap_line(line: &str, base: usize, width: usize, rows: &mut Vec<Row>) {
         if used + w > width && used > 0 {
             if is_space {
                 // Let the space hang off the end of this row instead of starting the next.
-                rows.push(Row { start: base + start, end: base + i + g.len() });
+                rows.push(Row {
+                    start: base + start,
+                    end: base + i + g.len(),
+                });
                 start = i + g.len();
                 used = 0;
                 last_break = None;
@@ -239,12 +255,18 @@ fn wrap_line(line: &str, base: usize, width: usize, rows: &mut Vec<Row>) {
             }
             match last_break {
                 Some((at, width_at)) => {
-                    rows.push(Row { start: base + start, end: base + at });
+                    rows.push(Row {
+                        start: base + start,
+                        end: base + at,
+                    });
                     start = at;
                     used -= width_at;
                 }
                 None => {
-                    rows.push(Row { start: base + start, end: base + i });
+                    rows.push(Row {
+                        start: base + start,
+                        end: base + i,
+                    });
                     start = i;
                     used = 0;
                 }
@@ -256,7 +278,10 @@ fn wrap_line(line: &str, base: usize, width: usize, rows: &mut Vec<Row>) {
             last_break = Some((i + g.len(), used));
         }
     }
-    rows.push(Row { start: base + start, end: base + line.len() });
+    rows.push(Row {
+        start: base + start,
+        end: base + line.len(),
+    });
 }
 
 #[cfg(test)]

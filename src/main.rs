@@ -67,7 +67,13 @@ struct Options {
 }
 
 fn parse_args() -> Result<Options> {
-    let mut options = Options { client: None, config: None, dry_run: false, graphics: true, scan: None };
+    let mut options = Options {
+        client: None,
+        config: None,
+        dry_run: false,
+        graphics: true,
+        scan: None,
+    };
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
         match arg.as_str() {
@@ -78,6 +84,10 @@ fn parse_args() -> Result<Options> {
             "--scan" => options.scan = args.next(),
             "-h" | "--help" => {
                 println!("{USAGE}");
+                std::process::exit(0);
+            }
+            "-V" | "--version" => {
+                println!("rex-launch {}", env!("CARGO_PKG_VERSION"));
                 std::process::exit(0);
             }
             other => bail!("unknown argument {other:?}\n\n{USAGE}"),
@@ -94,22 +104,39 @@ fn main() -> Result<()> {
     let config = Config::load(options.config.as_deref())?;
     if let Some(host) = options.scan {
         let repos = discover::scan_remote(&host, &config.code_folders, &config.exclude)?;
-        return Scan { scanned_at: unix_now(), repos }.save(Some(&host));
+        return Scan {
+            scanned_at: unix_now(),
+            repos,
+        }
+        .save(Some(&host));
     }
 
     // This computer is scanned before drawing; it only reads directories.
     // Other connections start from their last scan and are rescanned in the
     // background, replacing it when the scan finishes.
     let mut repos = HashMap::new();
-    repos.insert(String::new(), discover::scan_local(&config.code_folders, &config.exclude));
+    repos.insert(
+        String::new(),
+        discover::scan_local(&config.code_folders, &config.exclude),
+    );
     let rex_hosts = launch::hosts();
     let configured = config.projects.iter().filter_map(|p| p.host.clone());
     let remotes: Vec<String> = rex_hosts.iter().cloned().chain(configured).collect();
     for host in &remotes {
-        repos.insert(host.clone(), Scan::load(Some(host)).map(|s| s.repos).unwrap_or_default());
+        repos.insert(
+            host.clone(),
+            Scan::load(Some(host)).map(|s| s.repos).unwrap_or_default(),
+        );
     }
     let mut model_cache = ModelCache::load();
-    let mut app = App::new(config, State::load(), options.client, rex_hosts, &repos, &model_cache.models)?;
+    let mut app = App::new(
+        config,
+        State::load(),
+        options.client,
+        rex_hosts,
+        &repos,
+        &model_cache.models,
+    )?;
     let (updates, received) = mpsc::channel();
     start_scans(&mut app, remotes, options.config.as_deref(), &updates);
     start_model_fetches(&mut app, &updates);
@@ -118,21 +145,43 @@ fn main() -> Result<()> {
     let mut terminal = ratatui::init();
     // Detection reads stdin directly, so it has to run before crossterm reads any input.
     if options.graphics {
-        app.chrome = chrome::detect(Duration::from_millis(300)).ok().flatten().map(Chrome::new);
+        app.chrome = chrome::detect(Duration::from_millis(300))
+            .ok()
+            .flatten()
+            .map(Chrome::new);
     }
     let enhanced = supports_keyboard_enhancement().unwrap_or(false);
     // Disambiguated keys let Shift+Enter add a newline instead of submitting.
     if enhanced {
-        execute!(stdout(), PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES))?;
+        execute!(
+            stdout(),
+            PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES)
+        )?;
     }
-    execute!(stdout(), EnableMouseCapture, EnableBracketedPaste, SetCursorStyle::SteadyBar)?;
+    execute!(
+        stdout(),
+        EnableMouseCapture,
+        EnableBracketedPaste,
+        SetCursorStyle::SteadyBar
+    )?;
 
-    let result = run(&mut terminal, &mut app, options.dry_run, &received, &mut model_cache);
+    let result = run(
+        &mut terminal,
+        &mut app,
+        options.dry_run,
+        &received,
+        &mut model_cache,
+    );
 
     if let Some(chrome) = app.chrome.as_mut() {
         let _ = chrome.delete_all(&mut stdout());
     }
-    let _ = execute!(stdout(), DisableMouseCapture, DisableBracketedPaste, SetCursorStyle::DefaultUserShape);
+    let _ = execute!(
+        stdout(),
+        DisableMouseCapture,
+        DisableBracketedPaste,
+        SetCursorStyle::DefaultUserShape
+    );
     if enhanced {
         let _ = execute!(stdout(), PopKeyboardEnhancementFlags);
     }
@@ -159,14 +208,23 @@ fn wait_until_shown() {
 }
 
 fn unix_now() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_secs())
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs())
 }
 
 /// Scans each host in its own detached `rex-launch --scan` process, which
 /// finishes and cleans up its temporary Rex session even if the popup closes
 /// first. `Update::Scanned` arrives once a host's scan is saved.
-fn start_scans(app: &mut App, hosts: Vec<String>, config: Option<&std::path::Path>, updates: &Sender<Update>) {
-    let Ok(exe) = std::env::current_exe() else { return };
+fn start_scans(
+    app: &mut App,
+    hosts: Vec<String>,
+    config: Option<&std::path::Path>,
+    updates: &Sender<Update>,
+) {
+    let Ok(exe) = std::env::current_exe() else {
+        return;
+    };
     for host in hosts {
         let mut command = Command::new(&exe);
         command.args(["--scan", &host]);
@@ -174,8 +232,14 @@ fn start_scans(app: &mut App, hosts: Vec<String>, config: Option<&std::path::Pat
             command.arg("--config").arg(config);
         }
         // Its own process group, so closing the popup's terminal doesn't stop it.
-        command.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).process_group(0);
-        let Ok(mut child) = command.spawn() else { continue };
+        command
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .process_group(0);
+        let Ok(mut child) = command.spawn() else {
+            continue;
+        };
         app.scanning.push(Some(host.clone()));
         let updates = updates.clone();
         std::thread::spawn(move || {
@@ -227,13 +291,18 @@ fn render(terminal: &mut DefaultTerminal, app: &mut App) -> Result<()> {
 /// size is unchanged, because an app that just started showing the popup
 /// doesn't get images that were sent before it attached.
 fn resized(app: &mut App, columns: u16, rows: u16) {
-    let Some(chrome) = app.chrome.as_mut() else { return };
+    let Some(chrome) = app.chrome.as_mut() else {
+        return;
+    };
     if let Ok(size) = window_size()
         && size.width > 0
         && columns > 0
         && rows > 0
     {
-        chrome.set_cell_size(CellSize { width: size.width / columns, height: size.height / rows });
+        chrome.set_cell_size(CellSize {
+            width: size.width / columns,
+            height: size.height / rows,
+        });
     }
     chrome.retransmit();
 }

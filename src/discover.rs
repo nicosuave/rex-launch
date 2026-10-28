@@ -52,15 +52,32 @@ pub fn scan_local(folders: &[String], exclude: &[String]) -> Vec<Repo> {
 /// a short-lived session there.
 pub fn scan_remote(host: &str, folders: &[String], exclude: &[String]) -> Result<Vec<Repo>> {
     let skip = exclude.join(" ");
-    let mut args = vec!["new", "rex-launch-scan", "--keep-open", "--shell=none", "--json", "--"];
+    let mut args = vec![
+        "new",
+        "rex-launch-scan",
+        "--keep-open",
+        "--shell=none",
+        "--json",
+        "--",
+    ];
     args.extend(["sh", "-c", SCAN_SCRIPT, "rex-launch", &skip]);
     args.extend(folders.iter().map(String::as_str));
     let created = launch::rex_json(Some(host), &args)?;
-    let session = created["session_id"].as_str().context("rex didn't report the scan's session")?;
-    let block = created["initial_windows"][0]["block_ids"][0].as_str().context("rex didn't report the scan's terminal")?;
+    let session = created["session_id"]
+        .as_str()
+        .context("rex didn't report the scan's session")?;
+    let block = created["initial_windows"][0]["block_ids"][0]
+        .as_str()
+        .context("rex didn't report the scan's terminal")?;
 
-    let output = launch::run(launch::rex(Some(host)).args(["wait", "-s", session, block, "--for", "60s"]))
-        .and_then(|_| launch::run(launch::rex(Some(host)).args(["capture", "-s", session, "-b", block, "--unwrap"])));
+    let output =
+        launch::run(launch::rex(Some(host)).args(["wait", "-s", session, block, "--for", "60s"]))
+            .and_then(|_| {
+                launch::run(
+                    launch::rex(Some(host))
+                        .args(["capture", "-s", session, "-b", block, "--unwrap"]),
+                )
+            });
     let _ = launch::run(launch::rex(Some(host)).args(["kill", session]));
     parse_scan(&String::from_utf8_lossy(&output?))
 }
@@ -71,7 +88,10 @@ pub fn scan_remote(host: &str, folders: &[String], exclude: &[String]) -> Result
 pub fn projects(host: Option<&str>, repos: &[Repo]) -> Vec<Project> {
     let mut groups: HashMap<String, Vec<&Repo>> = HashMap::new();
     for repo in repos {
-        let key = repo.origin.as_deref().map_or_else(|| repo.path.clone(), origin_key);
+        let key = repo
+            .origin
+            .as_deref()
+            .map_or_else(|| repo.path.clone(), origin_key);
         groups.entry(key).or_default().push(repo);
     }
     let mut projects: Vec<Project> = groups
@@ -104,7 +124,11 @@ fn parse_scan(text: &str) -> Result<Vec<Repo>> {
     let mut repos: Vec<Repo> = Vec::new();
     for line in text.lines().map(str::trim_end) {
         if let Some(path) = line.strip_prefix("R:") {
-            repos.push(Repo { path: path.to_string(), activity: 0, origin: None });
+            repos.push(Repo {
+                path: path.to_string(),
+                activity: 0,
+                origin: None,
+            });
         } else if let (Some(time), Some(repo)) = (line.strip_prefix("T:"), repos.last_mut()) {
             repo.activity = time.trim().parse().unwrap_or(0);
         } else if let (Some(url), Some(repo)) = (line.strip_prefix("U:"), repos.last_mut()) {
@@ -115,7 +139,9 @@ fn parse_scan(text: &str) -> Result<Vec<Repo>> {
 }
 
 fn subdirs(dir: &Path, exclude: &[String]) -> Vec<PathBuf> {
-    let Ok(entries) = std::fs::read_dir(dir) else { return Vec::new() };
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
     let mut dirs: Vec<PathBuf> = entries
         .filter_map(Result::ok)
         .map(|entry| entry.path())
@@ -137,14 +163,24 @@ fn is_repo(dir: &Path) -> bool {
 fn describe(dir: &Path) -> Repo {
     let git = dir.join(".git");
     let reflog = git.join("logs/HEAD");
-    let marker = if reflog.is_file() { reflog } else { git.join("HEAD") };
+    let marker = if reflog.is_file() {
+        reflog
+    } else {
+        git.join("HEAD")
+    };
     let activity = std::fs::metadata(marker)
         .and_then(|m| m.modified())
         .ok()
         .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
         .map_or(0, |d| d.as_secs());
-    let origin = std::fs::read_to_string(git.join("config")).ok().and_then(|c| origin_url(&c));
-    Repo { path: dir.display().to_string(), activity, origin }
+    let origin = std::fs::read_to_string(git.join("config"))
+        .ok()
+        .and_then(|c| origin_url(&c));
+    Repo {
+        path: dir.display().to_string(),
+        activity,
+        origin,
+    }
 }
 
 /// The url of `[remote "origin"]` in a git config file.
@@ -179,14 +215,23 @@ fn origin_name(url: &str) -> &str {
 }
 
 fn dir_name(path: &str) -> &str {
-    path.trim_end_matches('/').rsplit('/').next().unwrap_or(path)
+    path.trim_end_matches('/')
+        .rsplit('/')
+        .next()
+        .unwrap_or(path)
 }
 
 fn expand_home(path: &str) -> PathBuf {
-    let home = || std::env::var_os("HOME").map(PathBuf::from).unwrap_or_default();
+    let home = || {
+        std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .unwrap_or_default()
+    };
     match path {
         "~" => home(),
-        _ => path.strip_prefix("~/").map_or_else(|| PathBuf::from(path), |rest| home().join(rest)),
+        _ => path
+            .strip_prefix("~/")
+            .map_or_else(|| PathBuf::from(path), |rest| home().join(rest)),
     }
 }
 
@@ -206,8 +251,14 @@ mod tests {
             fs::create_dir_all(git.join("logs")).unwrap();
             fs::write(git.join("HEAD"), "ref: refs/heads/main\n").unwrap();
             fs::write(git.join("logs/HEAD"), "").unwrap();
-            let remote = origin.map_or(String::new(), |u| format!("[remote \"origin\"]\n\turl = {u}\n"));
-            fs::write(git.join("config"), format!("[core]\n\tbare = false\n{remote}")).unwrap();
+            let remote = origin.map_or(String::new(), |u| {
+                format!("[remote \"origin\"]\n\turl = {u}\n")
+            });
+            fs::write(
+                git.join("config"),
+                format!("[core]\n\tbare = false\n{remote}"),
+            )
+            .unwrap();
         };
         repo("editor", Some("git@github.com:me/editor.git"));
         repo("work/data", Some("https://github.com/acme/data"));
@@ -215,7 +266,11 @@ mod tests {
         repo("editor/vendor/inner", None);
         repo("_archive/old", None);
         fs::create_dir_all(root.join("work/data.worktree")).unwrap();
-        fs::write(root.join("work/data.worktree/.git"), "gitdir: ../data/.git/worktrees/x\n").unwrap();
+        fs::write(
+            root.join("work/data.worktree/.git"),
+            "gitdir: ../data/.git/worktrees/x\n",
+        )
+        .unwrap();
         root
     }
 
@@ -227,7 +282,10 @@ mod tests {
     fn finds_repositories_two_levels_deep_and_skips_worktrees() {
         let root = fixture("finds_reposi");
         let repos = scan_local(&[root.display().to_string()], &["_archive".into()]);
-        let mut found: Vec<&str> = repos.iter().map(|r| r.path.strip_prefix(&*root.to_string_lossy()).unwrap()).collect();
+        let mut found: Vec<&str> = repos
+            .iter()
+            .map(|r| r.path.strip_prefix(&*root.to_string_lossy()).unwrap())
+            .collect();
         found.sort();
         assert_eq!(found, ["/editor", "/work/data", "/work/data-fix"]);
         fs::remove_dir_all(root).unwrap();
@@ -264,7 +322,10 @@ mod tests {
 
     #[test]
     fn origin_keys_ignore_how_the_remote_is_written() {
-        assert_eq!(origin_key("git@github.com:Org/Repo.git"), origin_key("https://github.com/org/repo/"));
+        assert_eq!(
+            origin_key("git@github.com:Org/Repo.git"),
+            origin_key("https://github.com/org/repo/")
+        );
         assert_eq!(origin_name("git@github.com:org/repo.git"), "repo");
     }
 
@@ -274,4 +335,3 @@ mod tests {
         assert_eq!(parse_scan("R:/x\nT:5\nU:\nDONE\n").unwrap()[0].activity, 5);
     }
 }
-

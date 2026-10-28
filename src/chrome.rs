@@ -81,7 +81,12 @@ pub struct Chrome {
 
 impl Chrome {
     pub fn new(cell: CellSize) -> Self {
-        Chrome { cell, ids: HashMap::new(), next_id: FIRST_ID, pending: Vec::new() }
+        Chrome {
+            cell,
+            ids: HashMap::new(),
+            next_id: FIRST_ID,
+            pending: Vec::new(),
+        }
     }
 
     /// Uses a new cell size for images rendered from now on.
@@ -105,14 +110,22 @@ impl Chrome {
     /// Writes `shape` at (x, y) as placeholder cells, keeping each cell's
     /// background. `ink` is only used by shapes that draw a glyph.
     pub fn put(&mut self, buf: &mut Buffer, x: u16, y: u16, shape: Shape, fill: Color, ink: Color) {
-        let key = Key { shape, fill: rgb(fill), ink: rgb(ink) };
+        let key = Key {
+            shape,
+            fill: rgb(fill),
+            ink: rgb(ink),
+        };
         let id = self.id(key);
         let id_color = Color::Rgb((id >> 16) as u8, (id >> 8) as u8, id as u8);
         for col in 0..shape.columns() {
-            let Some(cell) = buf.cell_mut((x + col, y)) else { continue };
+            let Some(cell) = buf.cell_mut((x + col, y)) else {
+                continue;
+            };
             // Every cell states its own row and column, so a diff that redraws
             // one cell alone still points at the right slice of the image.
-            let symbol: String = [PLACEHOLDER, DIACRITICS[0], DIACRITICS[usize::from(col)]].iter().collect();
+            let symbol: String = [PLACEHOLDER, DIACRITICS[0], DIACRITICS[usize::from(col)]]
+                .iter()
+                .collect();
             cell.set_symbol(&symbol).set_fg(id_color);
             cell.modifier = Default::default();
             cell.set_diff_option(CellDiffOption::ForcedWidth(NonZeroU16::MIN));
@@ -151,7 +164,10 @@ impl Chrome {
 
     fn transmit(&mut self, key: Key, id: u32) {
         let cols = u32::from(key.shape.columns());
-        let (w, h) = (cols * u32::from(self.cell.width), u32::from(self.cell.height));
+        let (w, h) = (
+            cols * u32::from(self.cell.width),
+            u32::from(self.cell.height),
+        );
         let rgba = rasterize(key, w, h);
         let data = BASE64.encode(rgba);
         let chunks: Vec<&[u8]> = data.as_bytes().chunks(CHUNK).collect();
@@ -160,7 +176,10 @@ impl Chrome {
             if n == 0 {
                 // Transmit and create the virtual placement in one command.
                 // c/r make every client scale the bitmap to its own cell grid.
-                let _ = write!(self.pending, "\x1b_Ga=T,U=1,i={id},f=32,t=d,s={w},v={h},c={cols},r=1,q=2,m={more};");
+                let _ = write!(
+                    self.pending,
+                    "\x1b_Ga=T,U=1,i={id},f=32,t=d,s={w},v={h},c={cols},r=1,q=2,m={more};"
+                );
             } else {
                 let _ = write!(self.pending, "\x1b_Gm={more},q=2;");
             }
@@ -197,7 +216,10 @@ fn segment(px: f64, py: f64, (ax, ay): (f64, f64), (bx, by): (f64, f64), half_wi
 /// Straight-alpha RGBA for one chrome image. Coverage is a one-pixel ramp
 /// across each shape's edge, which is enough anti-aliasing at Retina scale.
 fn rasterize(key: Key, w: u32, h: u32) -> Vec<u8> {
-    let (cw, ch) = (f64::from(w) / f64::from(key.shape.columns() as u32), f64::from(h));
+    let (cw, ch) = (
+        f64::from(w) / f64::from(key.shape.columns() as u32),
+        f64::from(h),
+    );
     let radius = cw.min(ch / 2.0);
     let far = 4.0 * ch; // stands in for "the rest of the card"
     let mut out = Vec::with_capacity((w * h * 4) as usize);
@@ -256,7 +278,9 @@ fn mix(a: (u8, u8, u8), b: (u8, u8, u8), t: f64) -> (u8, u8, u8) {
 /// in pixels. Must run in raw mode, before anything else reads stdin.
 /// Returns `None` when graphics are unsupported or nobody answered.
 pub fn detect(timeout: Duration) -> io::Result<Option<CellSize>> {
-    if std::env::var_os("TMUX").is_some() || std::env::var("TERM").is_ok_and(|t| t.starts_with("screen")) {
+    if std::env::var_os("TMUX").is_some()
+        || std::env::var("TERM").is_ok_and(|t| t.starts_with("screen"))
+    {
         return Ok(None); // would need passthrough wrapping
     }
     let mut out = io::stdout();
@@ -281,7 +305,11 @@ fn read_until_da1(timeout: Duration) -> io::Result<String> {
         if left.is_zero() {
             break;
         }
-        let mut fds = libc::pollfd { fd: libc::STDIN_FILENO, events: libc::POLLIN, revents: 0 };
+        let mut fds = libc::pollfd {
+            fd: libc::STDIN_FILENO,
+            events: libc::POLLIN,
+            revents: 0,
+        };
         let ready = unsafe { libc::poll(&mut fds, 1, left.as_millis() as libc::c_int) };
         if ready <= 0 {
             break;
@@ -319,12 +347,22 @@ mod tests {
     #[test]
     fn parses_cell_size_among_other_replies() {
         let reply = "\x1b_Gi=31;OK\x1b\\\x1b[6;28;14t\x1b[?62;22c";
-        assert_eq!(parse_cell_size(reply), Some(CellSize { width: 14, height: 28 }));
+        assert_eq!(
+            parse_cell_size(reply),
+            Some(CellSize {
+                width: 14,
+                height: 28
+            })
+        );
     }
 
     #[test]
     fn corner_is_transparent_outside_and_opaque_inside() {
-        let key = Key { shape: Shape::CardCorner(Corner::TopLeft), fill: (1, 2, 3), ink: (0, 0, 0) };
+        let key = Key {
+            shape: Shape::CardCorner(Corner::TopLeft),
+            fill: (1, 2, 3),
+            ink: (0, 0, 0),
+        };
         let px = rasterize(key, 14, 28);
         let alpha = |x: usize, y: usize| px[(y * 14 + x) * 4 + 3];
         assert_eq!(alpha(0, 0), 0, "top half is outside the card");
@@ -334,12 +372,25 @@ mod tests {
 
     #[test]
     fn placeholder_cells_carry_id_row_and_column() {
-        let mut chrome = Chrome::new(CellSize { width: 14, height: 28 });
+        let mut chrome = Chrome::new(CellSize {
+            width: 14,
+            height: 28,
+        });
         let mut buf = Buffer::empty(ratatui::layout::Rect::new(0, 0, 4, 1));
-        chrome.put(&mut buf, 0, 0, Shape::SendButton, Color::Rgb(9, 9, 9), Color::Rgb(0, 0, 0));
+        chrome.put(
+            &mut buf,
+            0,
+            0,
+            Shape::SendButton,
+            Color::Rgb(9, 9, 9),
+            Color::Rgb(0, 0, 0),
+        );
         let cell = &buf[(1, 0)];
         assert_eq!(cell.symbol(), "\u{10EEEE}\u{0305}\u{030D}");
         assert_eq!(cell.fg, Color::Rgb(0x52, 0x4C, 0x00));
-        assert!(!chrome.pending.is_empty(), "the first use queues a transmission");
+        assert!(
+            !chrome.pending.is_empty(),
+            "the first use queues a transmission"
+        );
     }
 }

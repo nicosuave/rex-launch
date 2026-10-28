@@ -25,12 +25,15 @@ pub fn run() -> Result<()> {
         println!("{} already loads rex-launch", init.display());
     } else {
         let exe = std::env::current_exe().context("finding the rex-launch executable")?;
-        std::fs::write(&init, with_require(&text, &exe)).with_context(|| format!("writing {}", init.display()))?;
+        std::fs::write(&init, with_require(&text, &stable_path(&exe)))
+            .with_context(|| format!("writing {}", init.display()))?;
         println!("added rex-launch to {}", init.display());
     }
 
     match launch::run(launch::rex(None).args(["config", "reload"])) {
-        Ok(_) => println!("reloaded Rex: press Cmd+Shift+N, or run \"New Task…\" from the command palette"),
+        Ok(_) => println!(
+            "reloaded Rex: press Cmd+Shift+N, or run \"New Task…\" from the command palette"
+        ),
         Err(err) => println!("couldn't reload Rex ({err:#}); run `rex config reload`"),
     }
     Ok(())
@@ -46,7 +49,25 @@ fn with_require(text: &str, exe: &Path) -> String {
     };
     // Rust's quoting of a path is also a valid Lua string.
     let bin = format!("{:?}", exe.display().to_string());
-    format!("{text}{separator}-- New Task popup: https://github.com/nicosuave/rex-launch\n{REQUIRE}.setup{{ bin = {bin} }}\n")
+    format!(
+        "{text}{separator}-- New Task popup: https://github.com/nicosuave/rex-launch\n{REQUIRE}.setup{{ bin = {bin} }}\n"
+    )
+}
+
+/// A path to the executable that survives upgrades: Homebrew's versioned
+/// `PREFIX/Cellar/rex-launch/VERSION/bin/rex-launch` becomes the
+/// `PREFIX/bin/rex-launch` link, when that link exists.
+fn stable_path(exe: &Path) -> PathBuf {
+    let text = exe.to_string_lossy();
+    if let Some((prefix, _)) = text.split_once("/Cellar/") {
+        let linked = Path::new(prefix)
+            .join("bin")
+            .join(exe.file_name().unwrap_or_default());
+        if linked.exists() {
+            return linked;
+        }
+    }
+    exe.to_path_buf()
 }
 
 /// Rex reads `$REX_CONFIG`, else `$XDG_CONFIG_HOME/rex/init.lua`, else
@@ -58,7 +79,12 @@ fn rex_init_path() -> PathBuf {
     let config = std::env::var_os("XDG_CONFIG_HOME")
         .filter(|p| !p.is_empty())
         .map(PathBuf::from)
-        .unwrap_or_else(|| std::env::var_os("HOME").map(PathBuf::from).unwrap_or_default().join(".config"));
+        .unwrap_or_else(|| {
+            std::env::var_os("HOME")
+                .map(PathBuf::from)
+                .unwrap_or_default()
+                .join(".config")
+        });
     config.join("rex/init.lua")
 }
 
@@ -68,11 +94,30 @@ mod tests {
 
     #[test]
     fn appends_the_require_after_existing_config() {
-        let text = with_require("rex.bind(\"cmd+d\", \"pane.split\")\n", Path::new("/opt/bin/rex-launch"));
+        let text = with_require(
+            "rex.bind(\"cmd+d\", \"pane.split\")\n",
+            Path::new("/opt/bin/rex-launch"),
+        );
         assert_eq!(
             text,
             "rex.bind(\"cmd+d\", \"pane.split\")\n\n-- New Task popup: https://github.com/nicosuave/rex-launch\nrequire(\"rex-launch\").setup{ bin = \"/opt/bin/rex-launch\" }\n"
         );
+    }
+
+    #[test]
+    fn homebrew_paths_use_the_linked_executable() {
+        let root = std::env::temp_dir().join(format!("rex-launch-brew-{}", std::process::id()));
+        let cellar = root.join("Cellar/rex-launch/0.1.0/bin/rex-launch");
+        std::fs::create_dir_all(cellar.parent().unwrap()).unwrap();
+        std::fs::create_dir_all(root.join("bin")).unwrap();
+        std::fs::write(&cellar, "").unwrap();
+        std::fs::write(root.join("bin/rex-launch"), "").unwrap();
+        assert_eq!(stable_path(&cellar), root.join("bin/rex-launch"));
+        assert_eq!(
+            stable_path(Path::new("/opt/bin/rex-launch")),
+            Path::new("/opt/bin/rex-launch")
+        );
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

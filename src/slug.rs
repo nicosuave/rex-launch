@@ -69,7 +69,10 @@ mod tests {
 
     #[test]
     fn drops_filler_words() {
-        assert_eq!(branch_from_prompt("can you fix the login redirect"), "fix-login-redirect");
+        assert_eq!(
+            branch_from_prompt("can you fix the login redirect"),
+            "fix-login-redirect"
+        );
     }
 
     #[test]
@@ -82,12 +85,18 @@ mod tests {
 
     #[test]
     fn handles_contractions_and_punctuation() {
-        assert_eq!(branch_from_prompt("Don't crash on empty CSVs!"), "don-crash-empty-csvs");
+        assert_eq!(
+            branch_from_prompt("Don't crash on empty CSVs!"),
+            "don-crash-empty-csvs"
+        );
     }
 
     #[test]
     fn keeps_numbers() {
-        assert_eq!(branch_from_prompt("bump to v2 and fix #322"), "bump-v2-fix-322");
+        assert_eq!(
+            branch_from_prompt("bump to v2 and fix #322"),
+            "bump-v2-fix-322"
+        );
     }
 
     #[test]
@@ -103,7 +112,10 @@ mod tests {
 
     #[test]
     fn sanitizes_typed_names() {
-        assert_eq!(sanitize_branch(" -me/Fix login..now// "), "me/Fix-login.now");
+        assert_eq!(
+            sanitize_branch(" -me/Fix login..now// "),
+            "me/Fix-login.now"
+        );
         assert_eq!(sanitize_branch("feature.lock"), "feature");
         assert_eq!(sanitize_branch("a  b"), "a-b");
     }

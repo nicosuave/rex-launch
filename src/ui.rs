@@ -62,7 +62,11 @@ fn paint(buf: &mut Buffer, area: Rect, app: &mut App) -> Option<Position> {
     card(buf, composer, CARD, Edges::Both, app.chrome.as_mut());
 
     let host_chip = header(buf, app, strip);
-    let cursor = prompt(buf, app, Rect::new(x + 2, composer.y + 1, width - 4, editor_rows));
+    let cursor = prompt(
+        buf,
+        app,
+        Rect::new(x + 2, composer.y + 1, width - 4, editor_rows),
+    );
     let cursor = chip_row(buf, app, x, width, chips_y).or(cursor);
     footer(buf, app, Rect::new(x + 2, footer_y, width - 4, 1));
 
@@ -81,7 +85,11 @@ fn paint(buf: &mut Buffer, area: Rect, app: &mut App) -> Option<Position> {
 fn header(buf: &mut Buffer, app: &mut App, strip: Rect) -> Rect {
     let y = strip.y + 1;
     let project = app.current_project();
-    let name_color = if app.project_available(project) { TEXT } else { FAINT };
+    let name_color = if app.project_available(project) {
+        TEXT
+    } else {
+        FAINT
+    };
     let project_chip = Line::from(vec![
         Span::styled(project.name.clone(), Style::new().fg(name_color)),
         Span::styled(" ▾", Style::new().fg(FAINT)),
@@ -89,15 +97,35 @@ fn header(buf: &mut Buffer, app: &mut App, strip: Rect) -> Rect {
     let mut host_chip = host_line(app.current_host());
     host_chip.push_span(Span::styled(" ▾", Style::new().fg(FAINT)));
     let open = app.overlay == Overlay::Projects;
-    let r = chip(buf, app, strip.x, y, &project_chip, open, Some(Hit::Project));
+    let r = chip(
+        buf,
+        app,
+        strip.x,
+        y,
+        &project_chip,
+        open,
+        Some(Hit::Project),
+    );
     let open = app.overlay == Overlay::Hosts;
-    chip(buf, app, r.right() + 1, y, &host_chip, open, Some(Hit::Host))
+    chip(
+        buf,
+        app,
+        r.right() + 1,
+        y,
+        &host_chip,
+        open,
+        Some(Hit::Host),
+    )
 }
 
 /// A connection with its icon: a house for this computer, a violet globe for
 /// a Rex host.
 fn host_line(host: Option<&str>) -> Line<'static> {
-    let (icon, color) = if host.is_some() { ("⊕ ", VIOLET) } else { ("⌂ ", MUTED) };
+    let (icon, color) = if host.is_some() {
+        ("⊕ ", VIOLET)
+    } else {
+        ("⌂ ", MUTED)
+    };
     Line::from(vec![
         Span::styled(icon, Style::new().fg(color)),
         Span::styled(host_label(host).to_string(), Style::new().fg(TEXT)),
@@ -134,7 +162,13 @@ fn prompt(buf: &mut Buffer, app: &mut App, area: Rect) -> Option<Position> {
     e.scroll = e.scroll.min(rows.len().saturating_sub(height));
 
     if e.text().is_empty() {
-        put(buf, area.x, area.y, &Line::styled("Do anything", Style::new().fg(FAINT)), area.width);
+        put(
+            buf,
+            area.x,
+            area.y,
+            &Line::styled("Do anything", Style::new().fg(FAINT)),
+            area.width,
+        );
     }
     for (i, r) in rows.iter().skip(e.scroll).take(height).enumerate() {
         let line = Line::styled(e.slice(*r), Style::new().fg(TEXT));
@@ -149,7 +183,11 @@ fn prompt(buf: &mut Buffer, app: &mut App, area: Rect) -> Option<Position> {
 fn chip_row(buf: &mut Buffer, app: &mut App, x: u16, width: u16, y: u16) -> Option<Position> {
     let last = x + width - 3;
 
-    let (fill, ink) = if app.can_submit() { (CREAM, PAGE) } else { (RAISED, FAINT) };
+    let (fill, ink) = if app.can_submit() {
+        (CREAM, PAGE)
+    } else {
+        (RAISED, FAINT)
+    };
     let busy = app.busy();
     let send = match app.chrome.as_mut() {
         Some(chrome) if !busy => {
@@ -166,7 +204,9 @@ fn chip_row(buf: &mut Buffer, app: &mut App, x: u16, width: u16, y: u16) -> Opti
     app.hits.push((send, Hit::Send));
 
     let agent = app.current_agent();
-    let detail = app.effort(app.agent).map_or_else(|| agent.detail.clone(), effort_label);
+    let detail = app
+        .effort(app.agent)
+        .map_or_else(|| agent.detail.clone(), effort_label);
     let model = Line::from(vec![
         Span::styled(agent.name.clone(), Style::new().fg(TEXT)),
         Span::styled(format!(" {detail}"), Style::new().fg(MUTED)),
@@ -195,7 +235,10 @@ fn chip_row(buf: &mut Buffer, app: &mut App, x: u16, width: u16, y: u16) -> Opti
     let room = model_rect.x.saturating_sub(branch_x + 2).saturating_sub(4) as usize;
     let (name, color) = match app.branch.as_str() {
         "" if !editing => ("branch".to_string(), FAINT),
-        name => (truncate_start(name, room), if editing { TEXT } else { MUTED }),
+        name => (
+            truncate_start(name, room),
+            if editing { TEXT } else { MUTED },
+        ),
     };
     let branch = Line::from(vec![
         Span::styled("⎇ ", Style::new().fg(FAINT)),
@@ -234,7 +277,10 @@ fn footer(buf: &mut Buffer, app: &App, area: Rect) {
 
 fn status_line(icon: &'static str, color: Color, text: &str) -> Line<'static> {
     let text = text.lines().next().unwrap_or_default().to_string();
-    Line::from(vec![Span::styled(icon, Style::new().fg(color)), Span::styled(text, Style::new().fg(TEXT))])
+    Line::from(vec![
+        Span::styled(icon, Style::new().fg(color)),
+        Span::styled(text, Style::new().fg(TEXT)),
+    ])
 }
 
 fn project_menu(buf: &mut Buffer, app: &mut App, area: Rect, strip: Rect) -> Option<Position> {
@@ -249,7 +295,11 @@ fn project_menu(buf: &mut Buffer, app: &mut App, area: Rect, strip: Rect) -> Opt
     menu_card(buf, app, menu);
 
     let cursor = search_row(buf, app, menu, "Search projects");
-    if app.scanning.iter().any(|h| h.as_deref() == app.current_host()) {
+    if app
+        .scanning
+        .iter()
+        .any(|h| h.as_deref() == app.current_host())
+    {
         scanning_note(buf, menu);
     }
     let visible = usize::from(height - 4);
@@ -262,15 +312,34 @@ fn project_menu(buf: &mut Buffer, app: &mut App, area: Rect, strip: Rect) -> Opt
                 Span::styled("  in ~, without a worktree", Style::new().fg(FAINT)),
             ])
         } else {
-            let color = if app.project_available(project) { TEXT } else { FAINT };
+            let color = if app.project_available(project) {
+                TEXT
+            } else {
+                FAINT
+            };
             Line::styled(project.name.clone(), Style::new().fg(color))
         };
         let y = menu.y + 3 + (row - first) as u16;
-        menu_row(buf, app, menu, y, line, row == app.selected, index == app.project);
-        app.hits.push((Rect::new(menu.x, y, menu.width, 1), Hit::ProjectRow(index)));
+        menu_row(
+            buf,
+            app,
+            menu,
+            y,
+            line,
+            row == app.selected,
+            index == app.project,
+        );
+        app.hits
+            .push((Rect::new(menu.x, y, menu.width, 1), Hit::ProjectRow(index)));
     }
     if matches.is_empty() {
-        put(buf, menu.x + 3, menu.y + 3, &Line::styled("No matching projects", Style::new().fg(FAINT)), menu.width - 4);
+        put(
+            buf,
+            menu.x + 3,
+            menu.y + 3,
+            &Line::styled("No matching projects", Style::new().fg(FAINT)),
+            menu.width - 4,
+        );
     }
     scrollbar(buf, menu, first, visible, matches.len());
     cursor
@@ -308,8 +377,19 @@ fn scrollbar(buf: &mut Buffer, menu: Rect, first: usize, visible: usize, count: 
     let start = (first * (visible - thumb) + (count - visible) / 2) / (count - visible);
     for row in 0..visible {
         let on_thumb = (start..start + thumb).contains(&row);
-        let (symbol, color) = if on_thumb { ("┃", MUTED) } else { ("│", RULE) };
-        set(buf, menu.right() - 2, menu.y + 3 + row as u16, symbol, color, None);
+        let (symbol, color) = if on_thumb {
+            ("┃", MUTED)
+        } else {
+            ("│", RULE)
+        };
+        set(
+            buf,
+            menu.right() - 2,
+            menu.y + 3 + row as u16,
+            symbol,
+            color,
+            None,
+        );
     }
 }
 
@@ -329,20 +409,46 @@ fn host_menu(buf: &mut Buffer, app: &mut App, area: Rect, x: u16, top: u16) -> O
     let first = scroll_to_selected(app, visible, matches.len());
     for (row, &index) in matches.iter().enumerate().skip(first).take(visible) {
         let host = app.hosts[index].clone();
-        let count = app.projects_on(host.as_deref()).iter().filter(|&&i| !app.projects[i].scratch).count();
+        let count = app
+            .projects_on(host.as_deref())
+            .iter()
+            .filter(|&&i| !app.projects[i].scratch)
+            .count();
         let mut line = host_line(host.as_deref());
         let noun = if count == 1 { "project" } else { "projects" };
-        let scanning = if app.scanning.contains(&host) { ", scanning…" } else { "" };
-        line.push_span(Span::styled(format!("  {count} {noun}{scanning}"), Style::new().fg(FAINT)));
+        let scanning = if app.scanning.contains(&host) {
+            ", scanning…"
+        } else {
+            ""
+        };
+        line.push_span(Span::styled(
+            format!("  {count} {noun}{scanning}"),
+            Style::new().fg(FAINT),
+        ));
         let y = menu.y + 3 + (row - first) as u16;
-        menu_row(buf, app, menu, y, line, row == app.selected, host == current);
-        app.hits.push((Rect::new(menu.x, y, menu.width, 1), Hit::HostRow(index)));
+        menu_row(
+            buf,
+            app,
+            menu,
+            y,
+            line,
+            row == app.selected,
+            host == current,
+        );
+        app.hits
+            .push((Rect::new(menu.x, y, menu.width, 1), Hit::HostRow(index)));
     }
     scrollbar(buf, menu, first, visible, matches.len());
     cursor
 }
 
-fn model_menu(buf: &mut Buffer, app: &mut App, area: Rect, right: u16, above: u16) -> Option<Position> {
+fn model_menu(
+    buf: &mut Buffer,
+    app: &mut App,
+    area: Rect,
+    right: u16,
+    above: u16,
+) -> Option<Position> {
     let matches = app.agent_matches();
     let width = 46.min(right - area.x);
     let (y, height) = menu_above(area, above, matches.len().max(1) as u16 + 4);
@@ -356,7 +462,12 @@ fn model_menu(buf: &mut Buffer, app: &mut App, area: Rect, right: u16, above: u1
     if !app.fetching.is_empty() {
         scanning_note(buf, menu);
     }
-    let harness_width = app.agents.iter().map(|a| a.harness.width()).max().unwrap_or(0);
+    let harness_width = app
+        .agents
+        .iter()
+        .map(|a| a.harness.width())
+        .max()
+        .unwrap_or(0);
     let visible = usize::from(height - 4);
     let first = scroll_to_selected(app, visible, matches.len());
     for (row, &index) in matches.iter().enumerate().skip(first).take(visible) {
@@ -364,18 +475,32 @@ fn model_menu(buf: &mut Buffer, app: &mut App, area: Rect, right: u16, above: u1
         let selected = row == app.selected;
         let detail = match app.effort(index) {
             // The arrows show that left and right change the highlighted model's effort.
-            Some(effort) if selected && agent.efforts.len() > 1 => format!(" ‹ {} ›", effort_label(effort)),
+            Some(effort) if selected && agent.efforts.len() > 1 => {
+                format!(" ‹ {} ›", effort_label(effort))
+            }
             Some(effort) => format!(" {}", effort_label(effort)),
             None => format!(" {}", agent.detail),
         };
         let line = Line::from(vec![
-            Span::styled(format!("{:harness_width$}  ", agent.harness), Style::new().fg(FAINT)),
+            Span::styled(
+                format!("{:harness_width$}  ", agent.harness),
+                Style::new().fg(FAINT),
+            ),
             Span::styled(agent.name.clone(), Style::new().fg(TEXT)),
             Span::styled(detail, Style::new().fg(MUTED)),
         ]);
         let y = menu.y + 3 + (row - first) as u16;
-        menu_row(buf, app, menu, y, line, row == app.selected, index == app.agent);
-        app.hits.push((Rect::new(menu.x, y, menu.width, 1), Hit::ModelRow(index)));
+        menu_row(
+            buf,
+            app,
+            menu,
+            y,
+            line,
+            row == app.selected,
+            index == app.agent,
+        );
+        app.hits
+            .push((Rect::new(menu.x, y, menu.width, 1), Hit::ModelRow(index)));
     }
     scrollbar(buf, menu, first, visible, matches.len());
     cursor
@@ -394,28 +519,66 @@ fn search_row(buf: &mut Buffer, app: &App, menu: Rect, placeholder: &str) -> Opt
     } else {
         Span::styled(app.query.clone(), Style::new().fg(TEXT))
     };
-    put(buf, menu.x + 2, y, &Line::from(vec![Span::styled("⌕ ", Style::new().fg(FAINT)), query]), menu.width - 4);
-    let rule = Line::styled("─".repeat(usize::from(menu.width - 4)), Style::new().fg(RULE));
+    put(
+        buf,
+        menu.x + 2,
+        y,
+        &Line::from(vec![Span::styled("⌕ ", Style::new().fg(FAINT)), query]),
+        menu.width - 4,
+    );
+    let rule = Line::styled(
+        "─".repeat(usize::from(menu.width - 4)),
+        Style::new().fg(RULE),
+    );
     put(buf, menu.x + 2, y + 1, &rule, menu.width - 4);
     Some(Position::new(menu.x + 4 + app.query.width() as u16, y))
 }
 
-fn menu_row(buf: &mut Buffer, app: &mut App, menu: Rect, y: u16, line: Line, selected: bool, current: bool) {
+fn menu_row(
+    buf: &mut Buffer,
+    app: &mut App,
+    menu: Rect,
+    y: u16,
+    line: Line,
+    selected: bool,
+    current: bool,
+) {
     let row = Rect::new(menu.x + 1, y, menu.width - 2, 1);
     let hovered = app.hover.is_some_and(|p| row.contains(p));
     if selected || hovered {
         let bg = if selected { SELECTED } else { RAISED };
-        pill(buf, row.x, y, &Line::raw(" ".repeat(usize::from(row.width - 2))), bg, app.chrome.as_mut());
+        pill(
+            buf,
+            row.x,
+            y,
+            &Line::raw(" ".repeat(usize::from(row.width - 2))),
+            bg,
+            app.chrome.as_mut(),
+        );
     }
     put(buf, menu.x + 2, y, &line, menu.width - 6);
     if current {
-        put(buf, menu.right() - 3, y, &Line::styled("✓", Style::new().fg(TEXT)), 1);
+        put(
+            buf,
+            menu.right() - 3,
+            y,
+            &Line::styled("✓", Style::new().fg(TEXT)),
+            1,
+        );
     }
 }
 
 /// Draws `line` as a chip at (x, y): raised into a pill when `raised` or
 /// under the mouse, flat otherwise, with the same footprint either way.
-fn chip(buf: &mut Buffer, app: &mut App, x: u16, y: u16, line: &Line, raised: bool, hit: Option<Hit>) -> Rect {
+fn chip(
+    buf: &mut Buffer,
+    app: &mut App,
+    x: u16,
+    y: u16,
+    line: &Line,
+    raised: bool,
+    hit: Option<Hit>,
+) -> Rect {
     let rect = Rect::new(x, y, line.width() as u16 + 2, 1);
     let hovered = hit.is_some() && app.hover.is_some_and(|p| rect.contains(p));
     let rect = if raised || hovered {
@@ -432,7 +595,14 @@ fn chip(buf: &mut Buffer, app: &mut App, x: u16, y: u16, line: &Line, raised: bo
 
 /// A pill: `line` on `bg` between two caps that blend into what's behind:
 /// semicircle images with `chrome`, half blocks without.
-fn pill(buf: &mut Buffer, x: u16, y: u16, line: &Line, bg: Color, chrome: Option<&mut Chrome>) -> Rect {
+fn pill(
+    buf: &mut Buffer,
+    x: u16,
+    y: u16,
+    line: &Line,
+    bg: Color,
+    chrome: Option<&mut Chrome>,
+) -> Rect {
     let width = line.width() as u16;
     for dx in 0..width {
         set(buf, x + 1 + dx, y, " ", TEXT, Some(bg));
@@ -441,7 +611,14 @@ fn pill(buf: &mut Buffer, x: u16, y: u16, line: &Line, bg: Color, chrome: Option
     match chrome {
         Some(chrome) => {
             chrome.put(buf, x, y, Shape::PillCap { left: true }, bg, bg);
-            chrome.put(buf, x + 1 + width, y, Shape::PillCap { left: false }, bg, bg);
+            chrome.put(
+                buf,
+                x + 1 + width,
+                y,
+                Shape::PillCap { left: false },
+                bg,
+                bg,
+            );
         }
         None => {
             set(buf, x, y, "▐", bg, None);
@@ -475,7 +652,9 @@ fn card(buf: &mut Buffer, r: Rect, color: Color, edges: Edges, mut chrome: Optio
                 _ => None,
             };
             match (corner, chrome.as_deref_mut()) {
-                (Some((corner, _)), Some(chrome)) => chrome.put(buf, x, y, Shape::CardCorner(corner), color, color),
+                (Some((corner, _)), Some(chrome)) => {
+                    chrome.put(buf, x, y, Shape::CardCorner(corner), color, color)
+                }
                 (Some((_, symbol)), None) => set(buf, x, y, symbol, color, None),
                 (None, _) if top => set(buf, x, y, "▄", color, None),
                 (None, _) if bottom => set(buf, x, y, "▀", color, None),
@@ -519,7 +698,12 @@ fn put(buf: &mut Buffer, x: u16, y: u16, line: &Line, max: u16) {
 fn effort_label(effort: &str) -> String {
     match effort {
         "xhigh" => "XHigh".into(),
-        _ => effort.chars().take(1).flat_map(char::to_uppercase).chain(effort.chars().skip(1)).collect(),
+        _ => effort
+            .chars()
+            .take(1)
+            .flat_map(char::to_uppercase)
+            .chain(effort.chars().skip(1))
+            .collect(),
     }
 }
 
@@ -567,8 +751,15 @@ mod tests {
             "#,
         )
         .unwrap();
-        App::new(config, State::default(), None, vec!["studio".into(), "buildbox".into()], &Default::default(), &[])
-            .unwrap()
+        App::new(
+            config,
+            State::default(),
+            None,
+            vec!["studio".into(), "buildbox".into()],
+            &Default::default(),
+            &[],
+        )
+        .unwrap()
     }
 
     fn render(app: &mut App, width: u16, height: u16) -> Buffer {
@@ -579,12 +770,21 @@ mod tests {
 
     #[test]
     fn every_cell_has_an_explicit_background() {
-        for overlay in [Overlay::None, Overlay::Projects, Overlay::Hosts, Overlay::Models] {
+        for overlay in [
+            Overlay::None,
+            Overlay::Projects,
+            Overlay::Hosts,
+            Overlay::Models,
+        ] {
             let mut app = app();
             app.overlay = overlay;
             let buf = render(&mut app, 100, 30);
             for cell in buf.content() {
-                assert_ne!(cell.bg, Color::Reset, "a cell would show the pane underneath");
+                assert_ne!(
+                    cell.bg,
+                    Color::Reset,
+                    "a cell would show the pane underneath"
+                );
             }
         }
     }
@@ -594,13 +794,24 @@ mod tests {
         use crate::chrome::CellSize;
         for overlay in [Overlay::None, Overlay::Projects, Overlay::Models] {
             let mut app = app();
-            app.chrome = Some(Chrome::new(CellSize { width: 14, height: 28 }));
+            app.chrome = Some(Chrome::new(CellSize {
+                width: 14,
+                height: 28,
+            }));
             app.overlay = overlay;
             let buf = render(&mut app, 100, 20);
             for cell in buf.content() {
-                assert_ne!(cell.bg, Color::Reset, "a cell would show the pane underneath");
+                assert_ne!(
+                    cell.bg,
+                    Color::Reset,
+                    "a cell would show the pane underneath"
+                );
             }
-            let images = buf.content().iter().filter(|c| c.symbol().starts_with('\u{10EEEE}')).count();
+            let images = buf
+                .content()
+                .iter()
+                .filter(|c| c.symbol().starts_with('\u{10EEEE}'))
+                .count();
             // Two cards' corners (strip top, composer), at least one pill's caps, and the send button.
             assert!(images >= 2 + 4 + 2, "found {images} image cells");
         }
@@ -609,7 +820,12 @@ mod tests {
     #[test]
     fn small_panes_do_not_panic() {
         for (w, h) in [(1, 1), (20, 5), (44, 12), (45, 13), (60, 14)] {
-            for overlay in [Overlay::None, Overlay::Projects, Overlay::Hosts, Overlay::Models] {
+            for overlay in [
+                Overlay::None,
+                Overlay::Projects,
+                Overlay::Hosts,
+                Overlay::Models,
+            ] {
                 let mut app = app();
                 app.overlay = overlay;
                 render(&mut app, w, h);

@@ -81,12 +81,15 @@ impl Launch {
     /// The command the new tab runs.
     pub fn tab_command(&self) -> Vec<String> {
         if !self.worktree {
-            let mut argv: Vec<String> = ["sh", "-c", NO_WORKTREE_SCRIPT, "rex-launch"].map(String::from).to_vec();
+            let mut argv: Vec<String> = ["sh", "-c", NO_WORKTREE_SCRIPT, "rex-launch"]
+                .map(String::from)
+                .to_vec();
             argv.extend(self.agent.iter().cloned());
             return argv;
         }
-        let mut argv: Vec<String> =
-            ["sh", "-c", TAB_SCRIPT, "rex-launch"].map(String::from).to_vec();
+        let mut argv: Vec<String> = ["sh", "-c", TAB_SCRIPT, "rex-launch"]
+            .map(String::from)
+            .to_vec();
         argv.push(self.repo.clone());
         argv.push(self.branch.clone());
         argv.extend(self.agent.iter().cloned());
@@ -97,8 +100,19 @@ impl Launch {
     /// already has a session and in a new session otherwise.
     pub fn rex_args(&self, session_id: Option<&str>) -> Vec<String> {
         let mut args: Vec<String> = match session_id {
-            Some(id) => vec!["window".into(), "new".into(), "-s".into(), id.into(), self.branch.clone()],
-            None => vec!["new".into(), self.session.clone(), "--window".into(), self.branch.clone()],
+            Some(id) => vec![
+                "window".into(),
+                "new".into(),
+                "-s".into(),
+                id.into(),
+                self.branch.clone(),
+            ],
+            None => vec![
+                "new".into(),
+                self.session.clone(),
+                "--window".into(),
+                self.branch.clone(),
+            ],
         };
         args.extend(["-c".into(), self.repo.clone(), "--json".into(), "--".into()]);
         args.extend(self.tab_command());
@@ -108,7 +122,12 @@ impl Launch {
     /// A readable summary for `--dry-run`.
     pub fn describe(&self) -> String {
         let target = self.host.as_deref().unwrap_or("this computer");
-        let agent = self.agent.iter().map(|a| format!("{a:?}")).collect::<Vec<_>>().join(" ");
+        let agent = self
+            .agent
+            .iter()
+            .map(|a| format!("{a:?}"))
+            .collect::<Vec<_>>()
+            .join(" ");
         format!(
             "host:    {target}\nsession: {}\ntab:     {}\nrepo:    {}\nagent:   {agent}",
             self.session, self.branch, self.repo
@@ -122,7 +141,11 @@ impl Launch {
             .as_array()
             .into_iter()
             .flatten()
-            .find(|s| s["label"].as_str().is_some_and(|l| l.eq_ignore_ascii_case(&self.session)))
+            .find(|s| {
+                s["label"]
+                    .as_str()
+                    .is_some_and(|l| l.eq_ignore_ascii_case(&self.session))
+            })
             .and_then(|s| s["session_id"].as_str())
             .map(String::from);
 
@@ -131,11 +154,16 @@ impl Launch {
             Some(id) => (Some(id), created["window_id"].as_str().map(String::from)),
             None => (
                 created["session_id"].as_str().map(String::from),
-                created["initial_windows"][0]["window_id"].as_str().map(String::from),
+                created["initial_windows"][0]["window_id"]
+                    .as_str()
+                    .map(String::from),
             ),
         };
         match (session_id, window_id) {
-            (Some(session_id), Some(window_id)) => Ok(Opened { session_id, window_id }),
+            (Some(session_id), Some(window_id)) => Ok(Opened {
+                session_id,
+                window_id,
+            }),
             _ => bail!("rex didn't report the new tab: {created}"),
         }
     }
@@ -203,7 +231,12 @@ mod tests {
             repo: "/Users/me/Code/api".into(),
             branch: "fix-login".into(),
             worktree: true,
-            agent: vec!["claude".into(), "--model".into(), "opus".into(), "fix \"it\"\n{{ now }}".into()],
+            agent: vec![
+                "claude".into(),
+                "--model".into(),
+                "opus".into(),
+                "fix \"it\"\n{{ now }}".into(),
+            ],
         }
     }
 
@@ -211,7 +244,10 @@ mod tests {
     fn tab_command_passes_the_prompt_through_unchanged() {
         let argv = launch().tab_command();
         assert_eq!(&argv[..2], ["sh", "-c"]);
-        assert_eq!(&argv[3..6], ["rex-launch", "/Users/me/Code/api", "fix-login"]);
+        assert_eq!(
+            &argv[3..6],
+            ["rex-launch", "/Users/me/Code/api", "fix-login"]
+        );
         assert_eq!(argv.last().unwrap(), "fix \"it\"\n{{ now }}");
     }
 
@@ -220,7 +256,16 @@ mod tests {
         let args = launch().rex_args(None);
         assert_eq!(
             &args[..8],
-            ["new", "api", "--window", "fix-login", "-c", "/Users/me/Code/api", "--json", "--"]
+            [
+                "new",
+                "api",
+                "--window",
+                "fix-login",
+                "-c",
+                "/Users/me/Code/api",
+                "--json",
+                "--"
+            ]
         );
         assert_eq!(args[8], "sh");
     }
@@ -230,13 +275,27 @@ mod tests {
         let args = launch().rex_args(Some("session:1"));
         assert_eq!(
             &args[..9],
-            ["window", "new", "-s", "session:1", "fix-login", "-c", "/Users/me/Code/api", "--json", "--"]
+            [
+                "window",
+                "new",
+                "-s",
+                "session:1",
+                "fix-login",
+                "-c",
+                "/Users/me/Code/api",
+                "--json",
+                "--"
+            ]
         );
     }
 
     #[test]
     fn no_worktree_runs_the_agent_directly() {
-        let argv = Launch { worktree: false, ..launch() }.tab_command();
+        let argv = Launch {
+            worktree: false,
+            ..launch()
+        }
+        .tab_command();
         assert_eq!(&argv[..4], ["sh", "-c", NO_WORKTREE_SCRIPT, "rex-launch"]);
         assert_eq!(argv[4], "claude");
     }
@@ -250,34 +309,73 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         let (repo, bin) = (dir.join("repo"), dir.join("bin"));
         std::fs::create_dir_all(&bin).unwrap();
-        let git = |args: &[&str]| assert!(Command::new("git").arg("-C").arg(&repo).args(args).output().unwrap().status.success());
+        let git = |args: &[&str]| {
+            assert!(
+                Command::new("git")
+                    .arg("-C")
+                    .arg(&repo)
+                    .args(args)
+                    .output()
+                    .unwrap()
+                    .status
+                    .success()
+            )
+        };
         std::fs::create_dir_all(&repo).unwrap();
         git(&["init", "-q", "-b", "main"]);
-        git(&["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "one"]);
+        git(&[
+            "-c",
+            "user.name=t",
+            "-c",
+            "user.email=t@t",
+            "commit",
+            "-q",
+            "--allow-empty",
+            "-m",
+            "one",
+        ]);
         git(&["branch", "fix-login"]);
         let fake = |name: &str, body: &str| {
             let path = bin.join(name);
             std::fs::write(&path, format!("#!/bin/sh\n{body}\n")).unwrap();
-            std::os::unix::fs::PermissionsExt::set_mode(&mut std::fs::metadata(&path).unwrap().permissions(), 0o755);
+            std::os::unix::fs::PermissionsExt::set_mode(
+                &mut std::fs::metadata(&path).unwrap().permissions(),
+                0o755,
+            );
             Command::new("chmod").arg("+x").arg(&path).status().unwrap();
         };
         // wt -C REPO switch --create BRANCH --no-cd --yes
         fake("wt", r#"git -C "$2" worktree add -q -b "$5" "$2.$5""#);
-        fake("rex", &format!(r#"echo "$@" >> "{}""#, dir.join("rex.log").display()));
+        fake(
+            "rex",
+            &format!(r#"echo "$@" >> "{}""#, dir.join("rex.log").display()),
+        );
         // The user's shell: runs `-lic COMMAND NAME ARGS...` and nothing else,
         // so the final interactive shell exits at once.
-        fake("user-shell", r#"[ "$1" = -lic ] || exit 0; shift; command=$1; shift; exec sh -c "$command" "$@""#);
+        fake(
+            "user-shell",
+            r#"[ "$1" = -lic ] || exit 0; shift; command=$1; shift; exec sh -c "$command" "$@""#,
+        );
 
         let launch = Launch {
             repo: repo.display().to_string(),
             branch: "fix-login".into(),
-            agent: vec!["sh".into(), "-c".into(), "echo agent on $(git branch --show-current)".into()],
+            agent: vec![
+                "sh".into(),
+                "-c".into(),
+                "echo agent on $(git branch --show-current)".into(),
+            ],
             ..launch()
         };
         let argv = launch.tab_command();
         let path = format!("{}:{}", bin.display(), std::env::var("PATH").unwrap());
         let shell = bin.join("user-shell");
-        let output = Command::new(&argv[0]).args(&argv[1..]).env("PATH", path).env("SHELL", shell).output().unwrap();
+        let output = Command::new(&argv[0])
+            .args(&argv[1..])
+            .env("PATH", path)
+            .env("SHELL", shell)
+            .output()
+            .unwrap();
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert!(stdout.contains("agent on fix-login-2"), "{stdout}");
         let renamed = std::fs::read_to_string(dir.join("rex.log")).unwrap();
@@ -287,7 +385,10 @@ mod tests {
 
     #[test]
     fn tab_script_is_valid_sh() {
-        let status = Command::new("sh").args(["-n", "-c", TAB_SCRIPT]).status().unwrap();
+        let status = Command::new("sh")
+            .args(["-n", "-c", TAB_SCRIPT])
+            .status()
+            .unwrap();
         assert!(status.success());
     }
 }

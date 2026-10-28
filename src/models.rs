@@ -70,8 +70,19 @@ pub fn fetch(harness: Harness) -> Result<Vec<Model>> {
 /// login, which changes which models are listed.)
 fn fetch_claude() -> Result<Vec<Model>> {
     let mut child = Command::new("claude")
-        .args(["-p", "--setting-sources", "", "--no-session-persistence", "--verbose"])
-        .args(["--input-format", "stream-json", "--output-format", "stream-json"])
+        .args([
+            "-p",
+            "--setting-sources",
+            "",
+            "--no-session-persistence",
+            "--verbose",
+        ])
+        .args([
+            "--input-format",
+            "stream-json",
+            "--output-format",
+            "stream-json",
+        ])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -141,7 +152,9 @@ fn ask(child: &mut Child, requests: &[&str], is_reply: impl Fn(&Value) -> bool) 
 /// Keeps Claude Code's model aliases ("opus", "sonnet", ...), which follow
 /// the latest version, and drops "default" and pinned versions.
 fn parse_claude(response: &Value) -> Result<Vec<Model>> {
-    let models = response["models"].as_array().context("no models in claude's answer")?;
+    let models = response["models"]
+        .as_array()
+        .context("no models in claude's answer")?;
     Ok(models
         .iter()
         .filter_map(|m| {
@@ -162,7 +175,9 @@ fn parse_claude(response: &Value) -> Result<Vec<Model>> {
 
 /// Keeps the models Codex doesn't hide.
 fn parse_codex(result: &Value) -> Result<Vec<Model>> {
-    let models = result["data"].as_array().context("no models in codex's answer")?;
+    let models = result["data"]
+        .as_array()
+        .context("no models in codex's answer")?;
     Ok(models
         .iter()
         .filter(|m| m["hidden"] != true)
@@ -188,11 +203,20 @@ fn parse_codex(result: &Value) -> Result<Vec<Model>> {
 /// "GPT-6.1-Sol" reads as "GPT-6.1 Sol", as in the Codex app.
 fn codex_name(name: &str) -> String {
     let parts: Vec<&str> = name.split('-').collect();
-    if parts.len() > 2 { format!("{}-{} {}", parts[0], parts[1], parts[2..].join(" ")) } else { name.to_string() }
+    if parts.len() > 2 {
+        format!("{}-{} {}", parts[0], parts[1], parts[2..].join(" "))
+    } else {
+        name.to_string()
+    }
 }
 
 fn strings(value: &Value) -> Vec<String> {
-    value.as_array().into_iter().flatten().filter_map(|v| v.as_str().map(String::from)).collect()
+    value
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|v| v.as_str().map(String::from))
+        .collect()
 }
 
 #[cfg(test)]
@@ -209,7 +233,10 @@ mod tests {
         ]});
         let models = parse_claude(&response).unwrap();
         assert_eq!(models.len(), 1);
-        assert_eq!((models[0].id.as_str(), models[0].name.as_str()), ("opus", "Opus 5.5"));
+        assert_eq!(
+            (models[0].id.as_str(), models[0].name.as_str()),
+            ("opus", "Opus 5.5")
+        );
         assert_eq!(models[0].efforts, ["low", "high"]);
     }
 
@@ -230,6 +257,9 @@ mod tests {
     #[test]
     fn effort_arguments_follow_each_agent() {
         assert_eq!(Harness::Claude.effort_args("max"), ["--effort", "max"]);
-        assert_eq!(Harness::Codex.effort_args("xhigh"), ["-c", "model_reasoning_effort=xhigh"]);
+        assert_eq!(
+            Harness::Codex.effort_args("xhigh"),
+            ["-c", "model_reasoning_effort=xhigh"]
+        );
     }
 }

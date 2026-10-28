@@ -14,9 +14,9 @@ use ratatui::layout::{Position, Rect};
 use crate::chrome::Chrome;
 use crate::config::{Access, Agent, Config, Project, State};
 use crate::discover::{self, Repo};
-use crate::models::{Harness, Model};
 use crate::editor::Editor;
 use crate::launch::Launch;
+use crate::models::{Harness, Model};
 use crate::{fuzzy, slug};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -173,14 +173,19 @@ impl App {
     pub fn set_repos(&mut self, host: Option<&str>, repos: &[Repo]) {
         let current = self.current_project().key();
         let configured: Vec<String> = self.config.projects.iter().map(Project::key).collect();
-        self.projects.retain(|p| p.host.as_deref() != host || p.scratch || configured.contains(&p.key()));
+        self.projects
+            .retain(|p| p.host.as_deref() != host || p.scratch || configured.contains(&p.key()));
         for project in discover::projects(host, repos) {
             if !self.projects.iter().any(|p| p.key() == project.key()) {
                 self.projects.push(project);
             }
         }
         sort_projects(&mut self.projects, &self.state);
-        self.project = self.projects.iter().position(|p| p.key() == current).unwrap_or(0);
+        self.project = self
+            .projects
+            .iter()
+            .position(|p| p.key() == current)
+            .unwrap_or(0);
         self.scanning.retain(|h| h.as_deref() != host);
     }
 
@@ -213,7 +218,11 @@ impl App {
     pub fn set_models(&mut self, harness: Harness, models: &[Model]) {
         let current = self.current_agent().id.clone();
         self.agents = build_agents(models, &self.config);
-        self.agent = self.agents.iter().position(|a| a.id == current).unwrap_or(0);
+        self.agent = self
+            .agents
+            .iter()
+            .position(|a| a.id == current)
+            .unwrap_or(0);
         self.access = self.remembered_access();
         self.fetching.retain(|h| *h != harness);
     }
@@ -238,14 +247,21 @@ impl App {
     /// The indices of the projects on `host`, in config order.
     pub fn projects_on(&self, host: Option<&str>) -> Vec<usize> {
         let on_host = |(i, p): (usize, &Project)| (p.host.as_deref() == host).then_some(i);
-        self.projects.iter().enumerate().filter_map(on_host).collect()
+        self.projects
+            .iter()
+            .enumerate()
+            .filter_map(on_host)
+            .collect()
     }
 
     /// The current connection's projects matching the picker's query, best first.
     pub fn project_matches(&self) -> Vec<usize> {
         let pool = self.projects_on(self.current_host());
         let names = pool.iter().map(|&i| self.projects[i].name.as_str());
-        fuzzy::rank(&self.query, names).into_iter().map(|i| pool[i]).collect()
+        fuzzy::rank(&self.query, names)
+            .into_iter()
+            .map(|i| pool[i])
+            .collect()
     }
 
     /// The connections matching the picker's query, best first.
@@ -256,8 +272,11 @@ impl App {
 
     /// The agents matching the picker's query, best first.
     pub fn agent_matches(&self) -> Vec<usize> {
-        let haystacks: Vec<String> =
-            self.agents.iter().map(|a| format!("{} {} {}", a.harness, a.name, a.detail)).collect();
+        let haystacks: Vec<String> = self
+            .agents
+            .iter()
+            .map(|a| format!("{} {} {}", a.harness, a.name, a.detail))
+            .collect();
         fuzzy::rank(&self.query, haystacks.iter().map(String::as_str))
     }
 
@@ -311,7 +330,12 @@ impl App {
         match event.kind {
             MouseEventKind::Moved => self.hover = Some(at),
             MouseEventKind::Down(MouseButton::Left) if !self.busy() => {
-                let hit = self.hits.iter().rev().find(|(r, _)| r.contains(at)).map(|&(_, h)| h);
+                let hit = self
+                    .hits
+                    .iter()
+                    .rev()
+                    .find(|(r, _)| r.contains(at))
+                    .map(|&(_, h)| h);
                 match hit {
                     Some(Hit::Project) => self.toggle(Overlay::Projects),
                     Some(Hit::Host) => self.toggle(Overlay::Hosts),
@@ -355,7 +379,11 @@ impl App {
         }
         agent.extend(self.current_access().args.iter().cloned());
         // A leading space keeps a prompt such as "-v is broken" from being read as a flag.
-        agent.push(if prompt.starts_with('-') { format!(" {prompt}") } else { prompt.to_string() });
+        agent.push(if prompt.starts_with('-') {
+            format!(" {prompt}")
+        } else {
+            prompt.to_string()
+        });
         Ok(Launch {
             host: project.host.clone(),
             session: project.name.clone(),
@@ -369,11 +397,16 @@ impl App {
     /// Remembers the project, agent, and access mode for next time.
     pub fn save_state(&mut self) {
         let key = self.current_project().key();
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_secs());
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs());
         self.state.launched.insert(key.clone(), now);
         self.state.project = Some(key);
         self.state.agent = Some(self.current_agent().id.clone());
-        let (agent, access) = (self.current_agent().id.clone(), self.current_access().name.clone());
+        let (agent, access) = (
+            self.current_agent().id.clone(),
+            self.current_access().name.clone(),
+        );
         self.state.access.insert(agent.clone(), access);
         if let Some(effort) = self.effort(self.agent).map(String::from) {
             self.state.efforts.insert(agent, effort);
@@ -510,10 +543,15 @@ impl App {
         self.menu_scroll = 0;
         // Start the menu on the current choice.
         self.selected = match overlay {
-            Overlay::Projects => self.project_matches().iter().position(|&i| i == self.project),
+            Overlay::Projects => self
+                .project_matches()
+                .iter()
+                .position(|&i| i == self.project),
             Overlay::Hosts => {
                 let current = self.current_host().map(String::from);
-                self.host_matches().iter().position(|&i| self.hosts[i] == current)
+                self.host_matches()
+                    .iter()
+                    .position(|&i| self.hosts[i] == current)
             }
             Overlay::Models => self.agent_matches().iter().position(|&i| i == self.agent),
             _ => None,
@@ -560,10 +598,18 @@ impl App {
 
     /// Moves the highlighted model's effort one level up or down.
     fn cycle_effort(&mut self, delta: isize) {
-        let Some(&index) = self.agent_matches().get(self.selected) else { return };
-        let Some(current) = self.effort(index).map(String::from) else { return };
+        let Some(&index) = self.agent_matches().get(self.selected) else {
+            return;
+        };
+        let Some(current) = self.effort(index).map(String::from) else {
+            return;
+        };
         let agent = &self.agents[index];
-        let at = agent.efforts.iter().position(|e| *e == current).unwrap_or(0);
+        let at = agent
+            .efforts
+            .iter()
+            .position(|e| *e == current)
+            .unwrap_or(0);
         let next = at.saturating_add_signed(delta).min(agent.efforts.len() - 1);
         let (id, effort) = (agent.id.clone(), agent.efforts[next].clone());
         self.state.efforts.insert(id, effort);
@@ -651,18 +697,31 @@ mod tests {
     }
 
     fn app() -> App {
-        App::new(config(), State::default(), None, vec!["buildbox".into(), "studio".into()], &HashMap::new(), &[])
-            .unwrap()
+        App::new(
+            config(),
+            State::default(),
+            None,
+            vec!["buildbox".into(), "studio".into()],
+            &HashMap::new(),
+            &[],
+        )
+        .unwrap()
     }
 
     fn host_index(app: &App, label: &str) -> usize {
-        app.hosts.iter().position(|h| h.as_deref() == Some(label)).unwrap()
+        app.hosts
+            .iter()
+            .position(|h| h.as_deref() == Some(label))
+            .unwrap()
     }
 
     #[test]
     fn lists_this_computer_then_rex_hosts_without_duplicates() {
         let app = app();
-        assert_eq!(app.hosts, [None, Some("buildbox".into()), Some("studio".into())]);
+        assert_eq!(
+            app.hosts,
+            [None, Some("buildbox".into()), Some("studio".into())]
+        );
     }
 
     #[test]
@@ -672,7 +731,11 @@ mod tests {
         assert_eq!(app.current_project().name, "webapp");
         app.choose_host(host_index(&app, "studio"));
         assert_eq!(app.current_host(), Some("studio"));
-        let names: Vec<&str> = app.project_matches().iter().map(|&i| app.projects[i].name.as_str()).collect();
+        let names: Vec<&str> = app
+            .project_matches()
+            .iter()
+            .map(|&i| app.projects[i].name.as_str())
+            .collect();
         assert_eq!(names, ["api", "data", "No project"]);
     }
 
@@ -694,10 +757,24 @@ mod tests {
     fn a_scan_replaces_a_connections_projects_and_keeps_the_selection() {
         let mut app = app();
         app.choose_host(0);
-        let repo = |path: &str, activity| Repo { path: path.into(), activity, origin: None };
-        app.set_repos(Some("studio"), &[repo("/Users/me/Code/new-thing", 9), repo("/Users/me/Code/old", 1)]);
+        let repo = |path: &str, activity| Repo {
+            path: path.into(),
+            activity,
+            origin: None,
+        };
+        app.set_repos(
+            Some("studio"),
+            &[
+                repo("/Users/me/Code/new-thing", 9),
+                repo("/Users/me/Code/old", 1),
+            ],
+        );
         assert_eq!(app.current_project().name, "webapp");
-        let remote: Vec<&str> = app.projects_on(Some("studio")).iter().map(|&i| app.projects[i].name.as_str()).collect();
+        let remote: Vec<&str> = app
+            .projects_on(Some("studio"))
+            .iter()
+            .map(|&i| app.projects[i].name.as_str())
+            .collect();
         // Configured projects stay; discovered ones are ordered by recent activity.
         assert_eq!(remote, ["new-thing", "old", "api", "data", "No project"]);
     }
@@ -711,7 +788,15 @@ mod tests {
             efforts: vec!["low".into(), "high".into(), "xhigh".into()],
             default_effort: Some("low".into()),
         };
-        let mut app = App::new(config(), State::default(), None, vec![], &HashMap::new(), &[model]).unwrap();
+        let mut app = App::new(
+            config(),
+            State::default(),
+            None,
+            vec![],
+            &HashMap::new(),
+            &[model],
+        )
+        .unwrap();
         assert_eq!(app.current_agent().id, "codex:gpt-6.1-sol");
         assert_eq!(app.effort(0), Some("low"));
 
@@ -727,7 +812,11 @@ mod tests {
         app.editor.insert("tidy the readme");
         let plan = app.plan().unwrap();
         assert_eq!(&plan.agent[..3], ["codex", "-m", "gpt-6.1-sol"]);
-        assert!(plan.agent.windows(2).any(|w| w == ["-c", "model_reasoning_effort=xhigh"]));
+        assert!(
+            plan.agent
+                .windows(2)
+                .any(|w| w == ["-c", "model_reasoning_effort=xhigh"])
+        );
         assert_eq!(plan.agent.last().unwrap(), "tidy the readme");
     }
 }

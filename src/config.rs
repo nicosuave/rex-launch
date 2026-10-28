@@ -30,7 +30,13 @@ pub struct Project {
 impl Project {
     /// The "No project" entry for a connection.
     pub fn scratch(host: Option<&str>) -> Project {
-        Project { name: "No project".into(), path: "~".into(), host: host.map(String::from), activity: 0, scratch: true }
+        Project {
+            name: "No project".into(),
+            path: "~".into(),
+            host: host.map(String::from),
+            activity: 0,
+            scratch: true,
+        }
     }
 
     /// Identifies the project across runs and connections.
@@ -88,8 +94,16 @@ impl Agent {
     pub fn from_model(model: &Model) -> Agent {
         let access = match model.harness {
             Harness::Claude => vec![
-                Access { name: "Default".into(), level: Level::Default, args: vec![] },
-                Access { name: "Auto".into(), level: Level::Auto, args: vec!["--permission-mode".into(), "auto".into()] },
+                Access {
+                    name: "Default".into(),
+                    level: Level::Default,
+                    args: vec![],
+                },
+                Access {
+                    name: "Auto".into(),
+                    level: Level::Auto,
+                    args: vec!["--permission-mode".into(), "auto".into()],
+                },
                 Access {
                     name: "Full access".into(),
                     level: Level::Full,
@@ -97,7 +111,11 @@ impl Agent {
                 },
             ],
             Harness::Codex => vec![
-                Access { name: "Default".into(), level: Level::Default, args: vec![] },
+                Access {
+                    name: "Default".into(),
+                    level: Level::Default,
+                    args: vec![],
+                },
                 Access {
                     name: "Full access".into(),
                     level: Level::Full,
@@ -190,7 +208,9 @@ impl Config {
 
     /// The agents offered before any agent has reported its models.
     pub fn fallback_agents() -> Vec<Agent> {
-        Config::parse(DEFAULT_AGENTS).map(|c| c.agents).unwrap_or_default()
+        Config::parse(DEFAULT_AGENTS)
+            .map(|c| c.agents)
+            .unwrap_or_default()
     }
 
     fn parse(text: &str) -> Result<Config> {
@@ -200,7 +220,11 @@ impl Config {
                 bail!("agent {:?} has an empty command", agent.id);
             }
             if agent.access.is_empty() {
-                agent.access.push(Access { name: "Default".into(), level: Level::Default, args: vec![] });
+                agent.access.push(Access {
+                    name: "Default".into(),
+                    level: Level::Default,
+                    args: vec![],
+                });
             }
         }
         Ok(config)
@@ -302,7 +326,9 @@ fn write_json(path: &Path, value: &impl Serialize) -> Result<()> {
 }
 
 fn home() -> PathBuf {
-    std::env::var_os("HOME").map(PathBuf::from).unwrap_or_default()
+    std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_default()
 }
 
 fn xdg_dir(var: &str, fallback: &str) -> PathBuf {
