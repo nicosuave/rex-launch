@@ -9,7 +9,7 @@
 --   bin      the rex-launch executable. Rex runs it without your interactive
 --            shell's PATH, so an absolute path is safest.
 --   key      the shortcut, "cmd+shift+n" by default; false for none. The
---            command palette lists the action as "New Task…" either way.
+--            command palette lists it as "rex-launch: new task" either way.
 --   columns  the popup's size in cells, title bar included (108 by 17).
 --   rows
 
@@ -56,9 +56,10 @@ function M.setup(options)
 
   rex.action{
     name        = "new_task",
-    title       = "New Task…",
+    title       = "rex-launch: new task",
     description = "Write a prompt, pick a project, and start an agent in a new worktree",
-    keywords    = "worktree agent prompt launch claude codex",
+    category    = "rex-launch",
+    keywords    = "rex-launch new task worktree agent prompt launch claude codex",
     run         = function(ctx, args)
       -- No window_id: a layer created with one was placed but not drawn by
       -- the Rex app, while one in the active window was.

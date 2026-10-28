@@ -32,7 +32,7 @@ pub fn run() -> Result<()> {
 
     match launch::run(launch::rex(None).args(["config", "reload"])) {
         Ok(_) => println!(
-            "reloaded Rex: press Cmd+Shift+N, or run \"New Task…\" from the command palette"
+            "reloaded Rex: press Cmd+Shift+N, or run \"rex-launch: new task\" from the command palette"
         ),
         Err(err) => println!("couldn't reload Rex ({err:#}); run `rex config reload`"),
     }

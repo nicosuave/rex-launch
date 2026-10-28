@@ -26,7 +26,8 @@ Rex's `init.lua`, adds this line to `init.lua` once, and reloads Rex:
 require("rex-launch").setup{ bin = "/Users/you/.cargo/bin/rex-launch" }
 ```
 
-Then press **Cmd+Shift+N**, or run **New Task…** from the command palette.
+Then press **Cmd+Shift+N**, or run **rex-launch: new task** from the command
+palette.
 `setup` also takes `key` (a different shortcut, or `false` for none) and
 `columns`/`rows` (the popup's size in cells). Run `rex-launch setup` again
 after upgrading to refresh the module.
