@@ -5,6 +5,8 @@ prompt, pick a project and an agent, and press Return: rex-launch opens a tab
 in the project's Rex session that creates a git worktree with
 [worktrunk](https://worktrunk.dev) and starts the agent in it with your prompt.
 
+![rex-launch composer with project, connection, and model selectors](docs/screenshot.png)
+
 ## Install
 
 You need [Rex](https://www.superlogical.com/rex/docs), and on every machine
